@@ -1,14 +1,16 @@
+####
+#### last update 04/02/22
+####
 import tkinter as tk
 from tkinter import PhotoImage, ttk, messagebox
 from tkinter.filedialog import askopenfilenames
 import fitz
 from datetime import datetime
-import win32api
 import win32print
 
 ################################################################################
 
-with open('./users.txt', 'r') as users:
+with open('config/usuarios.txt', 'r') as users:
     usuarios = users.readlines()
     lista_usuarios = [usuario.strip() for usuario in usuarios]
 
@@ -21,7 +23,6 @@ for i, printer in enumerate(printers):
     list_printers.append(imp)
 
 files = ''
-
 
 
 ################################################################################
@@ -51,7 +52,7 @@ def load_files():
         info_files = ''
         arquivo, total_page, lenght_file, area_file = get_file_dimension(file)
         lista_box_arquivos.insert('end' , arquivo)
-        info_files = f'{total_page} / {lenght_file} / {area_file}'
+        info_files = f'{total_page} /\t {lenght_file} /\t {area_file}'
         lista_box_arquivos_info.insert('end' , info_files)
 
 def print_files():
@@ -63,15 +64,26 @@ def print_files():
         selected_printer = int(selected_printer[0:2].strip())
         win32print.SetDefaultPrinter(printers[selected_printer][2])
 
-        log = f'./log/log de impressão - {datetime.now().strftime("%B")}.txt'
-        if messagebox.askokcancel(title="Confirmar impressão", message="Deseja confirmar a impressão de arquivos?"):
+        log = f'log/log de impressão - {datetime.now().strftime("%B")}.txt'
+        if messagebox.askokcancel(title="Confirmar impressão",
+                                  message="Deseja confirmar a impressão de arquivos?"):
             with open(log, 'a') as log:
                     for file in files:
-                        win32api.ShellExecute(0, "print", file, None, ".", 0)
-                        info_files = ''
-                        arquivo, total_page, lenght_file, area_file = get_file_dimension(file)
-                        info_files = f'\n{datetime.now().strftime("%d/%m/%Y - %H:%M:%S")};\t{selected_user};\t{arquivo};\t{total_page};\t{lenght_file};\t{area_file};\t{printers[selected_printer][2]};'
-                        log.write(info_files)
+                        try:
+                            #solution https://gist.github.com/Dogers/d60a1b25f9b11bdfc7c54c2cf020466c
+                            myprinter = win32print.OpenPrinter(printers[selected_printer][2])
+                            printjob = win32print.StartDocPrinter(myprinter,1,("", None, "raw"))
+                            with open(file, mode='rb') as file:
+                                buf = file.read()
+                            bytesprinted = win32print.WritePrinter(myprinter, buf)
+                            win32print.EndDocPrinter(myprinter)
+                            win32print.ClosePrinter(myprinter)
+                            info_files = ''
+                            arquivo, total_page, lenght_file, area_file = get_file_dimension(file)
+                            info_files = f'\n{datetime.now().strftime("%d/%m/%Y - %H:%M:%S")};\t{selected_user};\t{arquivo};\t{total_page};\t{lenght_file};\t{area_file};\t{printers[selected_printer][2]};'
+                            log.write(info_files)
+                        except:
+                            print("Something strange occurs")
     else:
         messagebox.showerror(title="Falta informação", message="Você deve selecionar impressora, projetista e os arquivos")
 
@@ -89,9 +101,8 @@ root = tk.Tk()
 root.geometry('1280x600')
 root.title("Controle de impressão ENGETEC")
 root.columnconfigure(0, weight=1)
-root.iconphoto(False, PhotoImage(file='./config/icone.png'))
-
-# root.iconbitmap('icone.ico')
+icone = PhotoImage(file='config/icone.png')
+root.iconphoto(False, icone)
 
 msg = tk.Label(text="Selecione a impressora")
 msg.grid(row=0, column=0, padx=15, pady=5, sticky='nsew')
